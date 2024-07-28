@@ -241,23 +241,32 @@ function process_selected_area_with_this_mod(event, selected)
     for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
       local tile = player.surface.get_tile(x, y)
 
-      local existing = tile.get_tile_ghosts(player.force)
-
-      for _, x in pairs(existing) do
-        x.destroy()
+      local tile_prototype = game.tile_prototypes[tile_name]
+      if not tile_prototype then
+        log_error("No prototype for tile: " .. tile_name)
+        return
       end
 
-      -- TODO: Clear existing tile ghosts
-      -- TODO: Check what happens when placing over water
       -- TODO: Check space exploration validity
-      --if tile.collides_with("water-tile") then
-      player.surface.create_entity {
-        name = "tile-ghost",
-        inner_name = tile_name,
-        position = {x, y},
-        force = player.force,
-        player = player
-      }
+      -- TODO: This landfill thing feels like a hack, but I can't figure out how
+      -- do it from collision masks on the landfill prototype (vs other tile
+      -- types) since they are all the same {"ground-tile"}. This might become
+      -- clearer when looking at SE prototypes...
+      if (tile_name == "landfill" and tile.collides_with("water-tile")) or (tile_name ~= "landfill" and not tile.collides_with("water-tile")) then
+        local existing = tile.get_tile_ghosts(player.force)
+
+        for _, x in pairs(existing) do
+          x.destroy()
+        end
+
+        player.surface.create_entity {
+          name = "tile-ghost",
+          inner_name = tile_name,
+          position = {x, y},
+          force = player.force,
+          player = player
+        }
+      end
     end
   end
 end
