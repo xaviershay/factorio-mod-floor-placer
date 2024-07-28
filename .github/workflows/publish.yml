@@ -1,8 +1,11 @@
-on: push
+on:
+  push:
+    tags:
+      - '*'
 name: Publish
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@main
     - name: Publish Mod
