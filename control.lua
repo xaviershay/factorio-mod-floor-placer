@@ -16,7 +16,9 @@ script.on_event({defines.events.on_player_cursor_stack_changed}, function(event)
       toggle_off(player)
     end
   else
-    toggle_off(player)
+    if global.current_action.active then
+      toggle_off(player)
+    end
   end
 end)
 
@@ -35,35 +37,35 @@ script.on_event({defines.events.on_player_selected_area}, function(event)
     end
 end)
 
--- @param entity LuaEntity
 script.on_event({defines.events.on_lua_shortcut}, function(event)
   handle_on_lua_shortcut(event)
 end)
 
 function handle_on_lua_shortcut(event)
-  if event.prototype_name ~= "floor-shortcut" then return end
-  local data = global.current_action
-  local player = game.get_player(event.player_index)
-  if not player then log_error("player nil"); return end
+  if event.prototype_name == "floor-shortcut" then
+    local data = global.current_action
+    local player = game.get_player(event.player_index)
+    if not player then log_error("player nil"); return end
 
-  log("handling event: on_lua_shortcut")
-  --log(serpent.block(data))
-  --player.print(serpent.block(data))
+    log("handling event: on_lua_shortcut")
+    --log(serpent.block(data))
+    --player.print(serpent.block(data))
 
-  if not data.active then
-    data.active = true
+    if not data.active then
+      data.active = true
 
-    show_gui(player)
+      show_gui(player)
 
-    -- Enable the selection cursor
-    -- Check if the cursor stack is valid and clear it if so
-    if player.cursor_stack and player.cursor_stack.valid_for_read then
-      player.cursor_stack.clear()
+      -- Enable the selection cursor
+      -- Check if the cursor stack is valid and clear it if so
+      if player.cursor_stack and player.cursor_stack.valid_for_read then
+        player.cursor_stack.clear()
+      end
+
+      player.cursor_stack.set_stack({name = "floor-selection-tool", count = 1})
+    else
+      toggle_off(player)
     end
-
-    player.cursor_stack.set_stack({name = "floor-selection-tool", count = 1})
-  else
-    toggle_off(player)
   end
 end
 
@@ -73,25 +75,41 @@ function toggle_off(player)
   -- Clear the selection cursor
   -- This check _should_ be redundant, stack should always be present when GUI is
   if player.cursor_stack and player.cursor_stack.valid_for_read then
-    player.cursor_stack.clear()
+    if player.cursor_stack.name == "floor-selection-tool" then
+      player.cursor_stack.clear()
+    end
   end
 end
 
+script.on_event(defines.events.on_gui_closed, function(event)
+    local player = game.get_player(event.player_index)
+    if event.element and event.element.name == "floor_item_picker_frame" then
+      toggle_off(player)
+    end
+end)
+
 script.on_event(defines.events.on_gui_click, function(event)
     local name = event.element.name
+    log("on gui click handler: " .. name)
     local player = game.get_player(event.player_index)
     if not player then return end
 
     local player = game.players[event.player_index]
-    if name == "floor_item_picker_confirm_button" then
-      toggle_off(player)
-    elseif name == "floor_item_picker_cancel_button" then
+    if name == "floor_item_picker_close_button" then
       toggle_off(player)
     else
       local button_prefix = "floor_item_picker_button_"
       if string.find(name, button_prefix) == 1 then
         handle_gui_element_click(name, player)
       end
+    end
+end)
+
+script.on_event(defines.events.on_gui_location_changed, function(event)
+    local element = event.element
+    
+    if element.name == "floor_item_picker_frame" then
+      global.current_action.gui_location = element.location
     end
 end)
 
@@ -108,6 +126,17 @@ end
 
 function handle_gui_element_click(element_name, player)
   global.current_action.selected = string.sub(element_name, string.len(prefix) + 1)
+
+  local frame = player.gui.screen.floor_item_picker_frame
+  local selector = frame.inner_frame.tile_selector
+
+  for _, option_name in pairs(selector.children_names) do
+    if option_name == element_name then
+      selector[option_name].style = "slot_sized_button_pressed"
+    else
+      selector[option_name].style = "slot_sized_button"
+    end
+  end
 end
 
 function show_gui(player)
@@ -151,8 +180,46 @@ function show_gui(player)
       type = "frame",
       name = "floor_item_picker_frame",
       direction = "vertical",
-      caption = {"floor-item-picker.title"},
   }
+  local location = global.current_action.gui_location
+  if location then
+    frame.location = location
+  end
+
+  local titlebar_flow = frame.add {
+      type="flow",
+      direction="horizontal",
+  }
+  titlebar_flow.style.horizontal_spacing=6
+
+  titlebar_flow.drag_target = frame
+    titlebar_flow.add{
+      type="label",
+      caption={"floor-placer-gui.title"},
+      ignored_by_interaction=true,
+      style="frame_title"
+    }
+    local widget = titlebar_flow.add{
+      type="empty-widget",
+      ignored_by_interaction=true,
+    }
+    --widget.style.parent = "draggable_space_header"
+    widget.style.height = 24
+    widget.style.horizontally_stretchable = "on"
+    widget.style.left_margin = 4
+    widget.style.right_margin = 4
+
+    local close_button = titlebar_flow.add{
+        type="sprite-button",
+        name="floor_item_picker_close_button",
+        sprite="utility/close_white",
+        hovered_sprite="utility/close_black",
+        clicked_sprite="utility/close_black",
+        tooltip={"floor-placer-gui.close-button-tooltip"},
+        --style="close_button"
+    }
+    close_button.style.height = 24
+    close_button.style.width = 24
   --frame.auto_center = true
   player.opened = frame
   --local label = frame.add {
@@ -164,7 +231,7 @@ function show_gui(player)
 
   local innerFrame = frame.add {
       type = "frame",
-      name = "all_toolbox_options",
+      name = "inner_frame",
       direction = "vertical",
       style="inside_shallow_frame",
   }
@@ -173,49 +240,24 @@ function show_gui(player)
   local flow = innerFrame.add {
       type = "flow",
       direction = "horizontal",
-      name = "Tile to use"
+      name = "tile_selector"
   }
 
   for item_name, _ in pairs(items) do
     local style = "slot_sized_button"
---        if pick_name == toolbox_options.pick.selected then
---            style = "slot_sized_button_pressed"
---        end
+    if item_name == new_selected then
+        style = "slot_sized_button_pressed"
+    end
+
     local button = flow.add {
-        type = "choose-elem-button",
-        name = "floor_item_picker_button_" .. item_name,
-        elem_type = "item",
-        --elem_filters = {{filter = "name", name = toolbox_options.pick.available}},
-        item = item_name,
-        style = style
+      type = "choose-elem-button",
+      name = "floor_item_picker_button_" .. item_name,
+      elem_type = "item",
+      item = item_name,
+      style = style
     }
     button.locked = true
   end
-  local bottom_flow = frame.add {
-      type = "flow",
-      direction = "horizontal",
-  }
-
-  bottom_flow.style.top_padding = 4
-  bottom_flow.add {
-      type = "button",
-      name = "floor_item_picker_cancel_button",
-      caption = {"floor-item-picker.cancel"},
-      style = "back_button"
-  }        
-  local filler = bottom_flow.add{
-      type = "empty-widget",
-      style = "draggable_space",
-      ignored_by_interaction = true,
-  }
-  filler.style.height = 32
-  filler.style.horizontally_stretchable = true
-  bottom_flow.add {
-      type = "button",
-      name = "floor_item_picker_confirm_button",
-      caption = {"floor-item-picker.confirm"},
-      style = "confirm_button"
-  }
 end
 
 function process_selected_area_with_this_mod(event, selected)
@@ -223,10 +265,6 @@ function process_selected_area_with_this_mod(event, selected)
   if not player then return end
 
   local current_action = global.current_action
-
-  --current_action.player_index = event.player_index
-  --current_action.area_bounds = event.area
-  --current_action.surface_index = event.surface.index
 
   local area = event.area
 
