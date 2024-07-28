@@ -1,0 +1,9 @@
+{
+    "name": "floor-placer",
+    "version": "0.1.0",
+    "title": "Floor Placer",
+    "author": "Xavier Shay",
+    "factorio_version": "1.1",
+    "dependencies": ["base >= 1.1"],
+    "description": "Place floor and landfill entities by selecting an area."
+}
