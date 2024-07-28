@@ -14,10 +14,11 @@ floorSelectionTool.stack_size = 1
 
 local floorShortcut = table.deepcopy(data.raw["shortcut"]["give-blueprint"])
 floorShortcut.name = "floor-shortcut"
+floorShortcut.action = "lua"
 floorShortcut.technology_to_unlock = nil
 floorShortcut.localised_name = nil
 floorShortcut.associated_control_input = "floor-selection-tool-toggle"
-floorShortcut.item_to_spawn = "floor-selection-tool"
+--floorShortcut.item_to_spawn = "floor-selection-tool"
 floorShortcut.style = "default"
 
 data:extend{floorSelectionTool, floorShortcut}
