@@ -16,7 +16,7 @@ script.on_event({defines.events.on_player_cursor_stack_changed}, function(event)
       toggle_off(player)
     end
   else
-    if global.current_action.active then
+    if global.active then
       toggle_off(player)
     end
   end
@@ -24,12 +24,12 @@ end)
 
 script.on_event({defines.events.on_player_selected_area}, function(event)
     if event.item == 'floor-selection-tool' then
-      if not global.current_action.active then
+      if not global.active then
         log_error("Selected area but GUI was not toggled on")
         return
       end
 
-      local selected = global.current_action.selected
+      local selected = global.selected
       if not selected then
         log_error("No item selected")
       end
@@ -43,7 +43,7 @@ end)
 
 function handle_on_lua_shortcut(event)
   if event.prototype_name == "floor-shortcut" then
-    local data = global.current_action
+    local data = global
     local player = game.get_player(event.player_index)
     if not player then log_error("player nil"); return end
 
@@ -70,7 +70,7 @@ function handle_on_lua_shortcut(event)
 end
 
 function toggle_off(player)
-  global.current_action.active = false
+  global.active = false
   hide_gui(player)
   -- Clear the selection cursor
   -- This check _should_ be redundant, stack should always be present when GUI is
@@ -109,7 +109,7 @@ script.on_event(defines.events.on_gui_location_changed, function(event)
     local element = event.element
     
     if element.name == "floor_item_picker_frame" then
-      global.current_action.gui_location = element.location
+      global.gui_location = element.location
     end
 end)
 
@@ -125,7 +125,7 @@ function hide_gui(player)
 end
 
 function handle_gui_element_click(element_name, player)
-  global.current_action.selected = string.sub(element_name, string.len(prefix) + 1)
+  global.selected = string.sub(element_name, string.len(prefix) + 1)
 
   local frame = player.gui.screen.floor_item_picker_frame
   local selector = frame.inner_frame.tile_selector
@@ -145,7 +145,7 @@ function show_gui(player)
   local available_tiles = game.get_filtered_tile_prototypes{{filter="blueprintable"}}
 
   local items = {}
-  local old_selected = global.current_action.selected
+  local old_selected = global.selected
   local new_selected = nil
 
   for _, tile in pairs(available_tiles) do
@@ -168,20 +168,20 @@ function show_gui(player)
 
   if not new_selected then
     log_error("No available items to place paths")
-    global.current_action.selected = nil
+    global.selected = nil
     return false
   end
   
-  global.current_action.selected = new_selected
+  global.selected = new_selected
   -- Store the list for easy reference when processing button clicks
-  global.current_action.tile_items = items
+  global.tile_items = items
 
   local frame = player.gui.screen.add {
       type = "frame",
       name = "floor_item_picker_frame",
       direction = "vertical",
   }
-  local location = global.current_action.gui_location
+  local location = global.gui_location
   if location then
     frame.location = location
   end
@@ -264,12 +264,10 @@ function process_selected_area_with_this_mod(event, selected)
   local player = game.get_player(event.player_index)
   if not player then return end
 
-  local current_action = global.current_action
-
   local area = event.area
 
   log("Selected: " .. selected)
-  local tile_name = current_action.tile_items[selected]
+  local tile_name = global.tile_items[selected]
   if not tile_name then
     log_error("No tile available for item " .. selected)
     return
