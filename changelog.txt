@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.2
-Date: ????
+Version: 0.2.0
+Date: 2024-10-22
   Changes:
+    - Factorio 2.0 compatibility, technically
+    - Regression: doesn't check for water when placing ghosts ... but maybe that makes sense with new ghost/landfill interaction?
+    - Regression: doesn't show selection area when dragging.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2024-07-28
@@ -12,4 +15,3 @@ Version: 0.1.0
 Date: 2024-07-28
   Features:
     - Initial release!
----------------------------------------------------------------------------------------------------

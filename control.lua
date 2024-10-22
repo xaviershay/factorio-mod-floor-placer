@@ -16,7 +16,7 @@ script.on_event({defines.events.on_player_cursor_stack_changed}, function(event)
       toggle_off(player)
     end
   else
-    if global.active then
+    if storage.active then
       toggle_off(player)
     end
   end
@@ -24,12 +24,12 @@ end)
 
 script.on_event({defines.events.on_player_selected_area}, function(event)
     if event.item == 'floor-selection-tool' then
-      if not global.active then
+      if not storage.active then
         log_error("Selected area but GUI was not toggled on")
         return
       end
 
-      local selected = global.selected
+      local selected = storage.selected
       if not selected then
         log_error("No item selected")
       end
@@ -43,7 +43,7 @@ end)
 
 function handle_on_lua_shortcut(event)
   if event.prototype_name == "floor-shortcut" then
-    local data = global
+    local data = storage
     local player = game.get_player(event.player_index)
     if not player then log_error("player nil"); return end
 
@@ -70,7 +70,7 @@ function handle_on_lua_shortcut(event)
 end
 
 function toggle_off(player)
-  global.active = false
+  storage.active = false
   hide_gui(player)
   -- Clear the selection cursor
   -- This check _should_ be redundant, stack should always be present when GUI is
@@ -109,7 +109,7 @@ script.on_event(defines.events.on_gui_location_changed, function(event)
     local element = event.element
     
     if element.name == "floor_item_picker_frame" then
-      global.gui_location = element.location
+      storage.gui_location = element.location
     end
 end)
 
@@ -125,7 +125,7 @@ function hide_gui(player)
 end
 
 function handle_gui_element_click(element_name, player)
-  global.selected = string.sub(element_name, string.len(prefix) + 1)
+  storage.selected = string.sub(element_name, string.len(prefix) + 1)
 
   local frame = player.gui.screen.floor_item_picker_frame
   local selector = frame.inner_frame.tile_selector
@@ -142,10 +142,10 @@ end
 function show_gui(player)
   -- Collect all blueprintable items that place tiles, to be presented as
   -- selections in the GUI
-  local available_tiles = game.get_filtered_tile_prototypes{{filter="blueprintable"}}
+  local available_tiles = prototypes.get_tile_filtered{{filter="blueprintable"}}
 
   local items = {}
-  local old_selected = global.selected
+  local old_selected = storage.selected
   local new_selected = nil
 
   for _, tile in pairs(available_tiles) do
@@ -168,20 +168,20 @@ function show_gui(player)
 
   if not new_selected then
     log_error("No available items to place paths")
-    global.selected = nil
+    storage.selected = nil
     return false
   end
   
-  global.selected = new_selected
+  storage.selected = new_selected
   -- Store the list for easy reference when processing button clicks
-  global.tile_items = items
+  storage.tile_items = items
 
   local frame = player.gui.screen.add {
       type = "frame",
       name = "floor_item_picker_frame",
       direction = "vertical",
   }
-  local location = global.gui_location
+  local location = storage.gui_location
   if location then
     frame.location = location
   end
@@ -205,14 +205,14 @@ function show_gui(player)
     }
     --widget.style.parent = "draggable_space_header"
     widget.style.height = 24
-    widget.style.horizontally_stretchable = "on"
+    widget.style.horizontally_stretchable = true
     widget.style.left_margin = 4
     widget.style.right_margin = 4
 
     local close_button = titlebar_flow.add{
         type="sprite-button",
         name="floor_item_picker_close_button",
-        sprite="utility/close_white",
+        sprite="utility/close",
         hovered_sprite="utility/close_black",
         clicked_sprite="utility/close_black",
         tooltip={"floor-placer-gui.close-button-tooltip"},
@@ -236,7 +236,7 @@ function show_gui(player)
       style="inside_shallow_frame",
   }
 
-  innerFrame.add {type = "line", style="frame_division_fake_horizontal_line"}
+  -- innerFrame.add {type = "line"}
   local flow = innerFrame.add {
       type = "flow",
       direction = "horizontal",
@@ -267,7 +267,7 @@ function process_selected_area_with_this_mod(event, selected)
   local area = event.area
 
   log("Selected: " .. selected)
-  local tile_name = global.tile_items[selected]
+  local tile_name = storage.tile_items[selected]
   if not tile_name then
     log_error("No tile available for item " .. selected)
     return
@@ -277,7 +277,7 @@ function process_selected_area_with_this_mod(event, selected)
     for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
       local tile = player.surface.get_tile(x, y)
 
-      local tile_prototype = game.tile_prototypes[tile_name]
+      local tile_prototype = prototypes.tile[tile_name]
       if not tile_prototype then
         log_error("No prototype for tile: " .. tile_name)
         return
@@ -288,7 +288,9 @@ function process_selected_area_with_this_mod(event, selected)
       -- do it from collision masks on the landfill prototype (vs other tile
       -- types) since they are all the same {"ground-tile"}. This might become
       -- clearer when looking at SE prototypes...
-      if (tile_name == "landfill" and tile.collides_with("water-tile")) or (tile_name ~= "landfill" and not tile.collides_with("water-tile")) then
+      -- TODO: Ok it's definitely a hack now, something has changed in 2.0 with
+      -- collision layers where the following check breaks.
+      --if (tile_name == "landfill" and tile.collides_with("water-tile")) or (tile_name ~= "landfill" and not tile.collides_with("water-tile")) then
         local existing = tile.get_tile_ghosts(player.force)
 
         for _, x in pairs(existing) do
@@ -302,7 +304,7 @@ function process_selected_area_with_this_mod(event, selected)
           force = player.force,
           player = player
         }
-      end
+      --end
     end
   end
 end
