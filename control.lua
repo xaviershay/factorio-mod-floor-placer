@@ -294,16 +294,30 @@ function process_selected_area_with_this_mod(event, selected)
       end
 
       -- TODO: Test this on non-Nauvis planets
-      -- Non-foundation tiles must be placed on ground
+      -- Non-foundation tiles must be placed on ground or foundation ghosts
       -- Foundation tiles must be placed on water
-      -- TODO: Allow placing of non-foundation tiles on water when a foundation ghost exists
-      if (not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile")) or (placing_tile_prototype.is_foundation and tile.collides_with("water_tile")) then
-        local existing = tile.get_tile_ghosts(player.force)
+      local can_place = not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile") or
+                           (placing_tile_prototype.is_foundation and tile.collides_with("water_tile"))
 
-        for _, x in pairs(existing) do
-          x.destroy()
+      local existing = tile.get_tile_ghosts(player.force)
+
+      for _, entity in pairs(existing) do
+        if entity.ghost_type == "tile" then
+          if not placing_tile_prototype.is_foundation and prototypes.tile[entity.ghost_name].is_foundation then
+            -- We're trying to place a ground tile on water, which normally
+            -- isn't allowed, but there is a landfill ghost waiting to be placed
+            -- so we can layer on top of it.
+            --
+            -- A possible future feature is to allow auto-placing of landfill (need to consider non-Nauvis planets).
+            can_place = true
+          else
+            -- This tile doesn't pair with what we're placing, destroy it so we can replace it.
+            entity.destroy()
+          end
         end
+      end
 
+      if can_place then
         player.surface.create_entity {
           name = "tile-ghost",
           inner_name = tile_name,

@@ -4,6 +4,7 @@ Date: ??
   Changes:
     - Fix: checks for water when placing ghosts.
     - Fix: don't create redundant ghosts when placing over existing tile.
+    - Feature: can layer floors on top of landfill ghosts.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2024-12-15
