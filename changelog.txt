@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.2
+Date: ??
+  Changes:
+    - Fix: checks for water when placing ghosts.
+    - Fix: don't create redundant ghosts when placing over existing tile.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2024-12-15
   Changes:
@@ -7,14 +13,14 @@ Date: 2024-12-15
 Version: 0.2.0
 Date: 2024-10-22
   Changes:
-    - Factorio 2.0 compatibility, technically
+    - Factorio 2.0 compatibility, technically.
     - Regression: doesn't check for water when placing ghosts ... but maybe that makes sense with new ghost/landfill interaction?
     - Regression: doesn't show selection area when dragging.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2024-07-28
   Changes:
-    - Added a thumbnail for the mod portal
+    - Added a thumbnail for the mod portal.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: 2024-07-28

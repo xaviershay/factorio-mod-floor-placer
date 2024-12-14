@@ -277,20 +277,27 @@ function process_selected_area_with_this_mod(event, selected)
     for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
       local tile = player.surface.get_tile(x, y)
 
-      local tile_prototype = prototypes.tile[tile_name]
-      if not tile_prototype then
+      -- DEBUG: Log all collision mask layers
+      --for k, v in pairs(tile.prototype.collision_mask.layers) do
+      --  log_error(k)
+      --end
+
+      local placing_tile_prototype = prototypes.tile[tile_name]
+      if not placing_tile_prototype then
         log_error("No prototype for tile: " .. tile_name)
         return
       end
 
-      -- TODO: Check space exploration validity
-      -- TODO: This landfill thing feels like a hack, but I can't figure out how
-      -- do it from collision masks on the landfill prototype (vs other tile
-      -- types) since they are all the same {"ground-tile"}. This might become
-      -- clearer when looking at SE prototypes...
-      -- TODO: Ok it's definitely a hack now, something has changed in 2.0 with
-      -- collision layers where the following check breaks.
-      --if (tile_name == "landfill" and tile.collides_with("water-tile")) or (tile_name ~= "landfill" and not tile.collides_with("water-tile")) then
+      -- If the tile is already the tile we're trying to place, nothing to do!
+      if tile.name == tile_name then
+        break
+      end
+
+      -- TODO: Test this on non-Nauvis planets
+      -- Non-foundation tiles must be placed on ground
+      -- Foundation tiles must be placed on water
+      -- TODO: Allow placing of non-foundation tiles on water when a foundation ghost exists
+      if (not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile")) or (placing_tile_prototype.is_foundation and tile.collides_with("water_tile")) then
         local existing = tile.get_tile_ghosts(player.force)
 
         for _, x in pairs(existing) do
@@ -304,7 +311,7 @@ function process_selected_area_with_this_mod(event, selected)
           force = player.force,
           player = player
         }
-      --end
+      end
     end
   end
 end
