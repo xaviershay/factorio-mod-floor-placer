@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.2
-Date: ??
+Version: 0.3.0
+Date: 2024-12-15
   Changes:
     - Fix: checks for water when placing ghosts.
     - Fix: don't create redundant ghosts when placing over existing tile.
