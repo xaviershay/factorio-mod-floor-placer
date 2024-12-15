@@ -288,11 +288,6 @@ function process_selected_area_with_this_mod(event, selected)
         return
       end
 
-      -- If the tile is already the tile we're trying to place, nothing to do!
-      if tile.name == tile_name then
-        break
-      end
-
       -- TODO: Test this on non-Nauvis planets
       -- Non-foundation tiles must be placed on ground or foundation ghosts
       -- Foundation tiles must be placed on water
@@ -315,6 +310,11 @@ function process_selected_area_with_this_mod(event, selected)
             entity.destroy()
           end
         end
+      end
+
+      -- If the tile is already the tile we're trying to place, nothing to do!
+      if tile.name == tile_name then
+        can_place = false
       end
 
       if can_place then
