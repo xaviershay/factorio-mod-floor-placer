@@ -278,54 +278,58 @@ function process_selected_area_with_this_mod(event, selected)
     for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
       local tile = player.surface.get_tile(x, y)
 
-      -- DEBUG: Log all collision mask layers
-      --for k, v in pairs(tile.prototype.collision_mask.layers) do
-      --  log_error(k)
-      --end
+      -- From satellite view it is possible to select a tile from a chunk that
+      -- hasn't been generated yet. These need to be skipped.
+      if tile.valid then
+        -- DEBUG: Log all collision mask layers
+        --for k, v in pairs(tile.prototype.collision_mask.layers) do
+        --  log_error(k)
+        --end
 
-      local placing_tile_prototype = prototypes.tile[tile_name]
-      if not placing_tile_prototype then
-        log_error("No prototype for tile: " .. tile_name)
-        return
-      end
+        local placing_tile_prototype = prototypes.tile[tile_name]
+        if not placing_tile_prototype then
+          log_error("No prototype for tile: " .. tile_name)
+          return
+        end
 
-      -- TODO: Test this on non-Nauvis planets
-      -- Non-foundation tiles must be placed on ground or foundation ghosts
-      -- Foundation tiles must be placed on water
-      local can_place = not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile") or
-                           (placing_tile_prototype.is_foundation and tile.collides_with("water_tile"))
+        -- TODO: Test this on non-Nauvis planets
+        -- Non-foundation tiles must be placed on ground or foundation ghosts
+        -- Foundation tiles must be placed on water
+        local can_place = not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile") or
+                            (placing_tile_prototype.is_foundation and tile.collides_with("water_tile"))
 
-      local existing = tile.get_tile_ghosts(player.force)
+        local existing = tile.get_tile_ghosts(player.force)
 
-      for _, entity in pairs(existing) do
-        if entity.ghost_type == "tile" then
-          if not placing_tile_prototype.is_foundation and prototypes.tile[entity.ghost_name].is_foundation then
-            -- We're trying to place a ground tile on water, which normally
-            -- isn't allowed, but there is a landfill ghost waiting to be placed
-            -- so we can layer on top of it.
-            --
-            -- A possible future feature is to allow auto-placing of landfill (need to consider non-Nauvis planets).
-            can_place = true
-          else
-            -- This tile doesn't pair with what we're placing, destroy it so we can replace it.
-            entity.destroy()
+        for _, entity in pairs(existing) do
+          if entity.ghost_type == "tile" then
+            if not placing_tile_prototype.is_foundation and prototypes.tile[entity.ghost_name].is_foundation then
+              -- We're trying to place a ground tile on water, which normally
+              -- isn't allowed, but there is a landfill ghost waiting to be placed
+              -- so we can layer on top of it.
+              --
+              -- A possible future feature is to allow auto-placing of landfill (need to consider non-Nauvis planets).
+              can_place = true
+            else
+              -- This tile doesn't pair with what we're placing, destroy it so we can replace it.
+              entity.destroy()
+            end
           end
         end
-      end
 
-      -- If the tile is already the tile we're trying to place, nothing to do!
-      if tile.name == tile_name then
-        can_place = false
-      end
+        -- If the tile is already the tile we're trying to place, nothing to do!
+        if tile.name == tile_name then
+          can_place = false
+        end
 
-      if can_place then
-        player.surface.create_entity {
-          name = "tile-ghost",
-          inner_name = tile_name,
-          position = {x, y},
-          force = player.force,
-          player = player
-        }
+        if can_place then
+          player.surface.create_entity {
+            name = "tile-ghost",
+            inner_name = tile_name,
+            position = {x, y},
+            force = player.force,
+            player = player
+          }
+        end
       end
     end
   end
