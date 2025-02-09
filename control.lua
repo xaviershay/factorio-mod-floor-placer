@@ -47,10 +47,6 @@ function handle_on_lua_shortcut(event)
     local player = game.get_player(event.player_index)
     if not player then log_error("player nil"); return end
 
-    log("handling event: on_lua_shortcut")
-    --log(serpent.block(data))
-    --player.print(serpent.block(data))
-
     if not data.active then
       data.active = true
 
@@ -90,7 +86,6 @@ end)
 
 script.on_event(defines.events.on_gui_click, function(event)
     local name = event.element.name
-    log("on gui click handler: " .. name)
     local player = game.get_player(event.player_index)
     if not player then return end
 
@@ -266,7 +261,6 @@ function process_selected_area_with_this_mod(event, selected)
 
   local area = event.area
 
-  log("Selected: " .. selected)
   local tile_name = storage.tile_items[selected]
   if not tile_name then
     log_error("No tile available for item " .. selected)
