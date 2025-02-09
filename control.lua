@@ -144,17 +144,24 @@ function show_gui(player)
   local new_selected = nil
 
   for _, tile in pairs(available_tiles) do
-    for _, placing_item in pairs(tile.items_to_place_this) do
-      local name = placing_item.name
-      if not items[name] then
-        items[name] = tile.name
+    -- In base game all tiles are placeable from an item, but some mods (i.e
+    -- Buildable Melting Ice) do interesting things with tiles that are
+    -- blueprintable but not from an item. I haven't put the time into
+    -- understand whether that's copacetic, but until someone complains we're
+    -- going to exclude from here.
+    if tile.items_to_place_this then
+      for _, placing_item in pairs(tile.items_to_place_this) do
+        local name = placing_item.name
+        if not items[name] then
+          items[name] = tile.name
 
-        if old_selected == nil then
-          old_selected = name
-          new_selected = name
-        else
-          if old_selected == name then
-            new_selected = old_selected
+          if old_selected == nil then
+            old_selected = name
+            new_selected = name
+          else
+            if old_selected == name then
+              new_selected = old_selected
+            end
           end
         end
       end

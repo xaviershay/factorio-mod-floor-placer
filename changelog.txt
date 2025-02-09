@@ -3,6 +3,7 @@ Version: ???
 Date: ???
   Changes:
     - Fix: Removed errant debug output.
+    - Fix: Buildable Melting Ice mod compatibilty.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: 2024-12-15
