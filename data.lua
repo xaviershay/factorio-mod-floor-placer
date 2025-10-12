@@ -25,6 +25,6 @@ data:extend{
     {
         type = "custom-input",
         name = "floor-selection-tool-toggle",
-        key_sequence = "CONTROL + SHIFT + F",
+        key_sequence = "",
     },
 }

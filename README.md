@@ -4,6 +4,8 @@ Place floor and landfill ghosts by dragging a selection.
 
 ![Screenshot](https://raw.githubusercontent.com/xaviershay/factorio-mod-floor-placer/main/floor-placer-1.jpg)
 
+A toggle keybind is available, though is unbound by default.
+
 ## Compatibility
 
 It should "just work" with mods that add other blueprintable tiles, such as Space Exploration.

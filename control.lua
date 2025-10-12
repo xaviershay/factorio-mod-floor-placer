@@ -41,6 +41,16 @@ script.on_event({defines.events.on_lua_shortcut}, function(event)
   handle_on_lua_shortcut(event)
 end)
 
+script.on_event("floor-selection-tool-toggle", function(event)
+  local player = game.get_player(event.player_index)
+  if not player then log_error("player nil"); return end
+  
+  handle_on_lua_shortcut({
+    prototype_name = "floor-shortcut",
+    player_index = event.player_index
+  })
+end)
+
 function handle_on_lua_shortcut(event)
   if event.prototype_name == "floor-shortcut" then
     local data = storage
