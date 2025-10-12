@@ -39,7 +39,5 @@ Current terrible release by hand process:
 
 * Bump version number in `info.json`
 * Edit `changelog.txt` to taste
-* Copy/paste all files into a new directory including version number e.g. `floor-placer_0.3.1`
-* Delete `.vscode`, `.git*`, and `*.zip` files
-* Zip the directory
+* `bin/prepare-release $VERSION`
 * Upload directly to mod portal

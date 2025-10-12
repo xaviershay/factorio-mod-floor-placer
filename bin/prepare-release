@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -ex
+
+VERSION=$1
+
+if [ -z "$VERSION" ]; then
+  echo "Error: VERSION is required. Usage: $0 <version>"
+  exit 1
+fi
+
+MODNAME="floor-placer_$VERSION"
+BUILDDIR="/tmp/$MODNAME"
+ORIGINAL_DIR=$(pwd)
+
+echo $BUILDDIR
+
+rm -Rf $BUILDDIR
+cp -R . $BUILDDIR
+
+rm $BUILDDIR/*.zip
+rm -Rf $BUILDDIR/.git*
+rm -Rf $BUILDDIR/.github
+rm -Rf $BUILDDIR/.vscode
+rm -Rf $BUILDDIR/bin
+
+cd /tmp
+zip -r $MODNAME.zip $MODNAME
+mv $MODNAME.zip $ORIGINAL_DIR/
