@@ -137,6 +137,8 @@ script.on_event(defines.events.on_gui_click, function(event)
     local player = game.players[event.player_index]
     if name == "floor_item_picker_close_button" then
       toggle_off(player)
+    elseif name == "floor_picker_clear_queue_button" then
+      clear_placement_queue()
     else
       local button_prefix = "floor_item_picker_button_"
       if string.find(name, button_prefix) == 1 then
@@ -286,6 +288,7 @@ function show_gui(player)
       ignored_by_interaction=true,
       style="frame_title"
     }
+    
     local widget = titlebar_flow.add{
       type="empty-widget",
       ignored_by_interaction=true,
@@ -295,6 +298,18 @@ function show_gui(player)
     widget.style.horizontally_stretchable = true
     widget.style.left_margin = 4
     widget.style.right_margin = 4
+
+    -- Add clear queue button
+    local clear_button = titlebar_flow.add{
+        type="sprite-button",
+        name="floor_picker_clear_queue_button",
+        sprite="utility/trash_white",
+        hovered_sprite="utility/trash",
+        clicked_sprite="utility/trash",
+        tooltip={"floor-placer-gui.clear-queue-tooltip"},
+    }
+    clear_button.style.height = 24
+    clear_button.style.width = 24
 
     local close_button = titlebar_flow.add{
         type="sprite-button",
@@ -394,6 +409,11 @@ function deregister_tick_handler()
     script.on_event(defines.events.on_tick, nil)
     storage.tick_handler_registered = false
   end
+end
+
+function clear_placement_queue()
+  storage.placement_queue = {}
+  deregister_tick_handler()
 end
 
 function process_placement_queue(event)
