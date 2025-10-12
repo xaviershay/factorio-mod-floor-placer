@@ -8,6 +8,8 @@ Toggle, next tile, and previous tile keybinds are available, though are unbound 
 
 Tune the performance of placing large areas using the Max Tiles Per Tick mod setting. A higher number will place slower for less UPS impact.
 
+[Demo video.](https://www.youtube.com/watch?v=vprXePljV3E)
+
 ## Compatibility
 
 It should "just work" with mods that add other blueprintable tiles, such as Space Exploration.
