@@ -1,8 +1,10 @@
 local prefix = "floor_item_picker_button_"
 
--- Configuration: Maximum number of tiles to process per tick
--- This prevents the game from freezing when placing large areas of tiles
-local MAX_TILES_PER_TICK = 100
+-- Helper function to get the max tiles per tick setting for a player
+-- This is a runtime-per-user setting, so each player can have their own value
+function get_max_tiles_per_tick(player)
+  return settings.get_player_settings(player)["floor-placer-max-tiles-per-tick"].value
+end
 
 function log_error(msg)
   local log_prefix = "ERROR: "
@@ -404,8 +406,11 @@ function process_placement_queue(event)
   -- Get the first (oldest) job from the queue
   local job = storage.placement_queue[1]
   
+  -- Get the player's setting value
+  local max_tiles_per_tick = get_max_tiles_per_tick(job.player)
+  
   -- Calculate which tiles to process this tick
-  local coords = get_tiles_to_process_this_tick(job, MAX_TILES_PER_TICK)
+  local coords = get_tiles_to_process_this_tick(job, max_tiles_per_tick)
   
   -- Process each tile
   for _, coord in ipairs(coords) do
@@ -498,8 +503,9 @@ function process_selected_area_with_this_mod(event, selected)
   end
 
   local total_tiles = calculate_total_tiles(area)
+  local max_tiles_per_tick = get_max_tiles_per_tick(player)
   
-  if total_tiles <= MAX_TILES_PER_TICK then
+  if total_tiles <= max_tiles_per_tick then
     -- Fast path: Process immediately for small areas
     for x=math.floor(area.left_top.x),math.ceil(area.right_bottom.x)-1 do
       for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
