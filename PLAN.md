@@ -98,28 +98,26 @@ This allows us to process tiles row-by-row (left-to-right, top-to-bottom).
 3. ✅ Add helper function `get_tile_coords_for_offset(area, offset)`
 4. Test that nothing breaks (existing synchronous behavior should still work)
 
-### Phase 2: Queue Infrastructure
-1. Initialize `storage.placement_queue` as empty array
-2. Initialize `storage.tick_handler_registered = false`
-3. Add tick handler registration/deregistration functions
-4. Create `get_tiles_to_process_this_tick(job, max_tiles)` helper
+### Phase 2: Queue Infrastructure ✅ DONE
+1. ✅ Initialize `storage.placement_queue` as empty array
+2. ✅ Initialize `storage.tick_handler_registered = false`
+3. ✅ Add tick handler registration/deregistration functions
+4. ✅ Create `get_tiles_to_process_this_tick(job, max_tiles)` helper
 
-### Phase 3: Async Processing
-1. Modify `process_selected_area_with_this_mod`:
+### Phase 3: Async Processing ✅ DONE
+1. ✅ Modify `process_selected_area_with_this_mod`:
    - Add size check (fast path vs queue path)
    - Create and enqueue jobs for large areas
    - Register tick handler
-2. Implement tick handler logic:
+2. ✅ Implement tick handler logic:
    - Dequeue first job
    - Process batch of tiles
    - Update offset or remove job
    - Deregister when queue empty
 
-### Phase 4: Configuration & Polish
-1. Define `max_tiles_per_tick` constant (start with 100)
-2. Add comments explaining the rate limiting
-3. Test with various area sizes
-4. Consider adding visual feedback (progress indicator?) - future enhancement
+### Phase 4: Configuration & Polish ✅ DONE
+1. ✅ Define `max_tiles_per_tick` constant (start with 100)
+2. ✅ Add comments explaining the rate limiting
 
 ## Testing Checklist
 

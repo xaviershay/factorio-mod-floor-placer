@@ -1,10 +1,25 @@
 local prefix = "floor_item_picker_button_"
 
+-- Configuration: Maximum number of tiles to process per tick
+-- This prevents the game from freezing when placing large areas of tiles
+local MAX_TILES_PER_TICK = 100
+
 function log_error(msg)
   local log_prefix = "ERROR: "
   log(log_prefix .. msg)
   game.print(log_prefix .. msg)
 end
+
+-- Phase 2: Initialize storage variables for placement queue
+script.on_init(function()
+  storage.placement_queue = storage.placement_queue or {}
+  storage.tick_handler_registered = storage.tick_handler_registered or false
+end)
+
+script.on_configuration_changed(function()
+  storage.placement_queue = storage.placement_queue or {}
+  storage.tick_handler_registered = storage.tick_handler_registered or false
+end)
 
 script.on_event({defines.events.on_player_cursor_stack_changed}, function(event)
   local player = game.get_player(event.player_index)
@@ -350,6 +365,69 @@ function get_tile_coords_for_offset(area, offset)
   return {x = x, y = y}
 end
 
+-- Returns an array of coordinate tables: { {x=x1, y=y1}, {x=x2, y=y2}, ... }
+function get_tiles_to_process_this_tick(job, max_tiles)
+  local total_tiles = calculate_total_tiles(job.area)
+  local tiles_remaining = total_tiles - job.offset
+  local tiles_to_process = math.min(max_tiles, tiles_remaining)
+  
+  local coords = {}
+  for i = 0, tiles_to_process - 1 do
+    local coord = get_tile_coords_for_offset(job.area, job.offset + i)
+    table.insert(coords, coord)
+  end
+  
+  return coords
+end
+
+function register_tick_handler()
+  if not storage.tick_handler_registered then
+    script.on_event(defines.events.on_tick, process_placement_queue)
+    storage.tick_handler_registered = true
+  end
+end
+
+function deregister_tick_handler()
+  if storage.tick_handler_registered then
+    script.on_event(defines.events.on_tick, nil)
+    storage.tick_handler_registered = false
+  end
+end
+
+function process_placement_queue(event)
+  -- Check if queue is empty
+  if not storage.placement_queue or #storage.placement_queue == 0 then
+    deregister_tick_handler()
+    return
+  end
+  
+  -- Get the first (oldest) job from the queue
+  local job = storage.placement_queue[1]
+  
+  -- Calculate which tiles to process this tick
+  local coords = get_tiles_to_process_this_tick(job, MAX_TILES_PER_TICK)
+  
+  -- Process each tile
+  for _, coord in ipairs(coords) do
+    process_tile_placement(coord.x, coord.y, job.tile_name, job.surface, job.force, job.player)
+  end
+  
+  -- Update the job's offset
+  job.offset = job.offset + #coords
+  
+  -- Check if job is complete
+  local total_tiles = calculate_total_tiles(job.area)
+  if job.offset >= total_tiles then
+    -- Job complete, remove from queue
+    table.remove(storage.placement_queue, 1)
+  end
+  
+  -- If queue is now empty, deregister handler
+  if #storage.placement_queue == 0 then
+    deregister_tick_handler()
+  end
+end
+
 -- Process placement of a single tile at coordinates (x, y)
 -- Extracted from the double-loop in process_selected_area_with_this_mod
 function process_tile_placement(x, y, tile_name, surface, force, player)
@@ -419,10 +497,27 @@ function process_selected_area_with_this_mod(event, selected)
     return
   end
 
-  -- Use the refactored helper function to process each tile
-  for x=math.floor(area.left_top.x),math.ceil(area.right_bottom.x)-1 do
-    for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
-      process_tile_placement(x, y, tile_name, player.surface, player.force, player)
+  local total_tiles = calculate_total_tiles(area)
+  
+  if total_tiles <= MAX_TILES_PER_TICK then
+    -- Fast path: Process immediately for small areas
+    for x=math.floor(area.left_top.x),math.ceil(area.right_bottom.x)-1 do
+      for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
+        process_tile_placement(x, y, tile_name, player.surface, player.force, player)
+      end
     end
+  else
+    -- Queue path: Create job and enqueue for rate-limited processing
+    local job = {
+      area = area,
+      tile_name = tile_name,
+      surface = player.surface,
+      force = player.force,
+      player = player,
+      offset = 0
+    }
+    
+    table.insert(storage.placement_queue, job)
+    register_tick_handler()
   end
 end
