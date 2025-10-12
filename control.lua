@@ -1,10 +1,27 @@
 local prefix = "floor_item_picker_button_"
 
+-- Helper function to get the max tiles per tick setting for a player
+-- This is a runtime-per-user setting, so each player can have their own value
+function get_max_tiles_per_tick(player)
+  return settings.get_player_settings(player)["floor-placer-max-tiles-per-tick"].value
+end
+
 function log_error(msg)
   local log_prefix = "ERROR: "
   log(log_prefix .. msg)
   game.print(log_prefix .. msg)
 end
+
+-- Phase 2: Initialize storage variables for placement queue
+script.on_init(function()
+  storage.placement_queue = storage.placement_queue or {}
+  storage.tick_handler_registered = storage.tick_handler_registered or false
+end)
+
+script.on_configuration_changed(function()
+  storage.placement_queue = storage.placement_queue or {}
+  storage.tick_handler_registered = storage.tick_handler_registered or false
+end)
 
 script.on_event({defines.events.on_player_cursor_stack_changed}, function(event)
   local player = game.get_player(event.player_index)
@@ -120,6 +137,8 @@ script.on_event(defines.events.on_gui_click, function(event)
     local player = game.players[event.player_index]
     if name == "floor_item_picker_close_button" then
       toggle_off(player)
+    elseif name == "floor_picker_clear_queue_button" then
+      clear_placement_queue()
     else
       local button_prefix = "floor_item_picker_button_"
       if string.find(name, button_prefix) == 1 then
@@ -269,6 +288,7 @@ function show_gui(player)
       ignored_by_interaction=true,
       style="frame_title"
     }
+    
     local widget = titlebar_flow.add{
       type="empty-widget",
       ignored_by_interaction=true,
@@ -278,6 +298,18 @@ function show_gui(player)
     widget.style.horizontally_stretchable = true
     widget.style.left_margin = 4
     widget.style.right_margin = 4
+
+    -- Add clear queue button
+    local clear_button = titlebar_flow.add{
+        type="sprite-button",
+        name="floor_picker_clear_queue_button",
+        sprite="utility/trash_white",
+        hovered_sprite="utility/trash",
+        clicked_sprite="utility/trash",
+        tooltip={"floor-placer-gui.clear-queue-tooltip"},
+    }
+    clear_button.style.height = 24
+    clear_button.style.width = 24
 
     local close_button = titlebar_flow.add{
         type="sprite-button",
@@ -330,6 +362,154 @@ function show_gui(player)
   end
 end
 
+-- Calculate the total number of tiles in an area
+function calculate_total_tiles(area)
+  local width = math.ceil(area.right_bottom.x) - math.floor(area.left_top.x)
+  local height = math.ceil(area.right_bottom.y) - math.floor(area.left_top.y)
+  return width * height
+end
+
+-- Convert a linear offset to (x, y) coordinates within an area
+-- Processes tiles row-by-row (left-to-right, top-to-bottom)
+function get_tile_coords_for_offset(area, offset)
+  local left = math.floor(area.left_top.x)
+  local top = math.floor(area.left_top.y)
+  local width = math.ceil(area.right_bottom.x) - left
+  
+  local x = left + (offset % width)
+  local y = top + math.floor(offset / width)
+  
+  return {x = x, y = y}
+end
+
+-- Returns an array of coordinate tables: { {x=x1, y=y1}, {x=x2, y=y2}, ... }
+function get_tiles_to_process_this_tick(job, max_tiles)
+  local total_tiles = calculate_total_tiles(job.area)
+  local tiles_remaining = total_tiles - job.offset
+  local tiles_to_process = math.min(max_tiles, tiles_remaining)
+  
+  local coords = {}
+  for i = 0, tiles_to_process - 1 do
+    local coord = get_tile_coords_for_offset(job.area, job.offset + i)
+    table.insert(coords, coord)
+  end
+  
+  return coords
+end
+
+function register_tick_handler()
+  if not storage.tick_handler_registered then
+    script.on_event(defines.events.on_tick, process_placement_queue)
+    storage.tick_handler_registered = true
+  end
+end
+
+function deregister_tick_handler()
+  if storage.tick_handler_registered then
+    script.on_event(defines.events.on_tick, nil)
+    storage.tick_handler_registered = false
+  end
+end
+
+function clear_placement_queue()
+  storage.placement_queue = {}
+  deregister_tick_handler()
+end
+
+function process_placement_queue(event)
+  -- Check if queue is empty
+  if not storage.placement_queue or #storage.placement_queue == 0 then
+    deregister_tick_handler()
+    return
+  end
+  
+  -- Get the first (oldest) job from the queue
+  local job = storage.placement_queue[1]
+  
+  -- Get the player's setting value
+  local max_tiles_per_tick = get_max_tiles_per_tick(job.player)
+  
+  -- Calculate which tiles to process this tick
+  local coords = get_tiles_to_process_this_tick(job, max_tiles_per_tick)
+  
+  -- Process each tile
+  for _, coord in ipairs(coords) do
+    process_tile_placement(coord.x, coord.y, job.tile_name, job.surface, job.force, job.player)
+  end
+  
+  -- Update the job's offset
+  job.offset = job.offset + #coords
+  
+  -- Check if job is complete
+  local total_tiles = calculate_total_tiles(job.area)
+  if job.offset >= total_tiles then
+    -- Job complete, remove from queue
+    table.remove(storage.placement_queue, 1)
+  end
+  
+  -- If queue is now empty, deregister handler
+  if #storage.placement_queue == 0 then
+    deregister_tick_handler()
+  end
+end
+
+-- Process placement of a single tile at coordinates (x, y)
+-- Extracted from the double-loop in process_selected_area_with_this_mod
+function process_tile_placement(x, y, tile_name, surface, force, player)
+  local tile = surface.get_tile(x, y)
+
+  -- From satellite view it is possible to select a tile from a chunk that
+  -- hasn't been generated yet. These need to be skipped.
+  if not tile.valid then
+    return
+  end
+
+  local placing_tile_prototype = prototypes.tile[tile_name]
+  if not placing_tile_prototype then
+    log_error("No prototype for tile: " .. tile_name)
+    return
+  end
+
+  -- TODO: Test this on non-Nauvis planets
+  -- Non-foundation tiles must be placed on ground or foundation ghosts
+  -- Foundation tiles must be placed on water
+  local can_place = not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile") or
+                      (placing_tile_prototype.is_foundation and tile.collides_with("water_tile"))
+
+  local existing = tile.get_tile_ghosts(force)
+
+  for _, entity in pairs(existing) do
+    if entity.ghost_type == "tile" then
+      if not placing_tile_prototype.is_foundation and prototypes.tile[entity.ghost_name].is_foundation then
+        -- We're trying to place a ground tile on water, which normally
+        -- isn't allowed, but there is a landfill ghost waiting to be placed
+        -- so we can layer on top of it.
+        --
+        -- A possible future feature is to allow auto-placing of landfill (need to consider non-Nauvis planets).
+        can_place = true
+      else
+        -- This tile doesn't pair with what we're placing, destroy it so we can replace it.
+        entity.destroy()
+      end
+    end
+  end
+
+  -- If the tile is already the tile we're trying to place, nothing to do!
+  if tile.name == tile_name then
+    can_place = false
+  end
+
+  if can_place then
+    surface.create_entity {
+      name = "tile-ghost",
+      inner_name = tile_name,
+      position = {x, y},
+      force = force,
+      player = player
+    }
+  end
+end
+
 function process_selected_area_with_this_mod(event, selected)
   local player = game.get_player(event.player_index)
   if not player then return end
@@ -342,63 +522,28 @@ function process_selected_area_with_this_mod(event, selected)
     return
   end
 
-  for x=math.floor(area.left_top.x),math.ceil(area.right_bottom.x)-1 do
-    for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
-      local tile = player.surface.get_tile(x, y)
-
-      -- From satellite view it is possible to select a tile from a chunk that
-      -- hasn't been generated yet. These need to be skipped.
-      if tile.valid then
-        -- DEBUG: Log all collision mask layers
-        --for k, v in pairs(tile.prototype.collision_mask.layers) do
-        --  log_error(k)
-        --end
-
-        local placing_tile_prototype = prototypes.tile[tile_name]
-        if not placing_tile_prototype then
-          log_error("No prototype for tile: " .. tile_name)
-          return
-        end
-
-        -- TODO: Test this on non-Nauvis planets
-        -- Non-foundation tiles must be placed on ground or foundation ghosts
-        -- Foundation tiles must be placed on water
-        local can_place = not placing_tile_prototype.is_foundation and tile.collides_with("ground_tile") or
-                            (placing_tile_prototype.is_foundation and tile.collides_with("water_tile"))
-
-        local existing = tile.get_tile_ghosts(player.force)
-
-        for _, entity in pairs(existing) do
-          if entity.ghost_type == "tile" then
-            if not placing_tile_prototype.is_foundation and prototypes.tile[entity.ghost_name].is_foundation then
-              -- We're trying to place a ground tile on water, which normally
-              -- isn't allowed, but there is a landfill ghost waiting to be placed
-              -- so we can layer on top of it.
-              --
-              -- A possible future feature is to allow auto-placing of landfill (need to consider non-Nauvis planets).
-              can_place = true
-            else
-              -- This tile doesn't pair with what we're placing, destroy it so we can replace it.
-              entity.destroy()
-            end
-          end
-        end
-
-        -- If the tile is already the tile we're trying to place, nothing to do!
-        if tile.name == tile_name then
-          can_place = false
-        end
-
-        if can_place then
-          player.surface.create_entity {
-            name = "tile-ghost",
-            inner_name = tile_name,
-            position = {x, y},
-            force = player.force,
-            player = player
-          }
-        end
+  local total_tiles = calculate_total_tiles(area)
+  local max_tiles_per_tick = get_max_tiles_per_tick(player)
+  
+  if total_tiles <= max_tiles_per_tick then
+    -- Fast path: Process immediately for small areas
+    for x=math.floor(area.left_top.x),math.ceil(area.right_bottom.x)-1 do
+      for y=math.floor(area.left_top.y),math.ceil(area.right_bottom.y)-1 do
+        process_tile_placement(x, y, tile_name, player.surface, player.force, player)
       end
     end
+  else
+    -- Queue path: Create job and enqueue for rate-limited processing
+    local job = {
+      area = area,
+      tile_name = tile_name,
+      surface = player.surface,
+      force = player.force,
+      player = player,
+      offset = 0
+    }
+    
+    table.insert(storage.placement_queue, job)
+    register_tick_handler()
   end
 end
