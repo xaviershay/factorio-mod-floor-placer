@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.0
+Date: 2025-10-13
+  Changes:
+    - Fix: Toggle keybind localised and implemented.
+    - Feature: Provide next and previous tile keybinds.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: 2025-02-09
   Changes:
