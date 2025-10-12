@@ -6,6 +6,8 @@ Place floor and landfill ghosts by dragging a selection.
 
 Toggle, next tile, and previous tile keybinds are available, though are unbound by default.
 
+Tune the performance of placing large areas using the Max Tiles Per Tick mod setting. A higher number will place slower for less UPS impact.
+
 ## Compatibility
 
 It should "just work" with mods that add other blueprintable tiles, such as Space Exploration.
