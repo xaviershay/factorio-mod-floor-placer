@@ -51,6 +51,24 @@ script.on_event("floor-selection-tool-toggle", function(event)
   })
 end)
 
+script.on_event("floor-selection-tool-next-tile", function(event)
+  local player = game.get_player(event.player_index)
+  if not player then log_error("player nil"); return end
+  
+  if storage.active then
+    cycle_tile(player, 1)
+  end
+end)
+
+script.on_event("floor-selection-tool-previous-tile", function(event)
+  local player = game.get_player(event.player_index)
+  if not player then log_error("player nil"); return end
+  
+  if storage.active then
+    cycle_tile(player, -1)
+  end
+end)
+
 function handle_on_lua_shortcut(event)
   if event.prototype_name == "floor-shortcut" then
     local data = storage
@@ -140,6 +158,71 @@ function handle_gui_element_click(element_name, player)
       selector[option_name].style = "slot_sized_button_pressed"
     else
       selector[option_name].style = "slot_sized_button"
+    end
+  end
+end
+
+function cycle_tile(player, direction)
+  -- Collect all blueprintable items that place tiles, using the same method as show_gui
+  local available_tiles = prototypes.get_tile_filtered{{filter="blueprintable"}}
+
+  local tile_list = {}
+  local seen = {}
+  -- TODO: DRY this with show_gui
+  for _, tile in pairs(available_tiles) do
+    if tile.items_to_place_this then
+      for _, placing_item in pairs(tile.items_to_place_this) do
+        local name = placing_item.name
+        if not seen[name] then
+          table.insert(tile_list, name)
+          seen[name] = true
+        end
+      end
+    end
+  end
+
+  if #tile_list == 0 then
+    return
+  end
+
+  -- Find the current selected tile index
+  local current_index = nil
+  for i, item_name in ipairs(tile_list) do
+    if item_name == storage.selected then
+      current_index = i
+      break
+    end
+  end
+
+  if not current_index then
+    -- If no tile is selected or it's not in the list, select the first one
+    current_index = 1
+  else
+    -- Move to next or previous tile with wrapping
+    current_index = current_index + direction
+    if current_index > #tile_list then
+      current_index = 1
+    elseif current_index < 1 then
+      current_index = #tile_list
+    end
+  end
+
+  -- TODO DRY this with click handler
+  -- Update the selected tile
+  local new_selected = tile_list[current_index]
+  storage.selected = new_selected
+
+  -- Update the GUI to reflect the new selection
+  local frame = player.gui.screen.floor_item_picker_frame
+  if frame and frame.valid then
+    local selector = frame.inner_frame.tile_selector
+    for _, option_name in pairs(selector.children_names) do
+      local item_name = string.sub(option_name, string.len(prefix) + 1)
+      if item_name == new_selected then
+        selector[option_name].style = "slot_sized_button_pressed"
+      else
+        selector[option_name].style = "slot_sized_button"
+      end
     end
   end
 end

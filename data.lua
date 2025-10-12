@@ -27,4 +27,14 @@ data:extend{
         name = "floor-selection-tool-toggle",
         key_sequence = "",
     },
+    {
+        type = "custom-input",
+        name = "floor-selection-tool-next-tile",
+        key_sequence = "",
+    },
+    {
+        type = "custom-input",
+        name = "floor-selection-tool-previous-tile",
+        key_sequence = "",
+    },
 }

@@ -4,7 +4,7 @@ Place floor and landfill ghosts by dragging a selection.
 
 ![Screenshot](https://raw.githubusercontent.com/xaviershay/factorio-mod-floor-placer/main/floor-placer-1.jpg)
 
-A toggle keybind is available, though is unbound by default.
+Toggle, next tile, and previous tile keybinds are available, though are unbound by default.
 
 ## Compatibility
 
