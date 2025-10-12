@@ -140,46 +140,54 @@ function hide_gui(player)
   local frame = player.gui.screen.floor_item_picker_frame
 
   if frame then 
-      --if confirmed then
-      --    player.mod_settings["pump-always-show"] = { value = frame.pump_tool_picker_always_show.state }
-      --end
     frame.destroy()
   end
 end
 
-function handle_gui_element_click(element_name, player)
-  storage.selected = string.sub(element_name, string.len(prefix) + 1)
-
-  local frame = player.gui.screen.floor_item_picker_frame
-  local selector = frame.inner_frame.tile_selector
-
-  for _, option_name in pairs(selector.children_names) do
-    if option_name == element_name then
-      selector[option_name].style = "slot_sized_button_pressed"
-    else
-      selector[option_name].style = "slot_sized_button"
-    end
-  end
-end
-
-function cycle_tile(player, direction)
-  -- Collect all blueprintable items that place tiles, using the same method as show_gui
+function get_available_tile_items()
   local available_tiles = prototypes.get_tile_filtered{{filter="blueprintable"}}
 
   local tile_list = {}
-  local seen = {}
-  -- TODO: DRY this with show_gui
+  local item_to_tile = {}
   for _, tile in pairs(available_tiles) do
     if tile.items_to_place_this then
       for _, placing_item in pairs(tile.items_to_place_this) do
         local name = placing_item.name
-        if not seen[name] then
+        if not item_to_tile[name] then
           table.insert(tile_list, name)
-          seen[name] = true
+          item_to_tile[name] = tile.name
         end
       end
     end
   end
+  
+  return tile_list, item_to_tile
+end
+
+function update_gui_selection(player, selected_item)
+  storage.selected = selected_item
+  
+  local frame = player.gui.screen.floor_item_picker_frame
+  if frame and frame.valid then
+    local selector = frame.inner_frame.tile_selector
+    for _, option_name in pairs(selector.children_names) do
+      local item_name = string.sub(option_name, string.len(prefix) + 1)
+      if item_name == selected_item then
+        selector[option_name].style = "slot_sized_button_pressed"
+      else
+        selector[option_name].style = "slot_sized_button"
+      end
+    end
+  end
+end
+
+function handle_gui_element_click(element_name, player)
+  local selected_item = string.sub(element_name, string.len(prefix) + 1)
+  update_gui_selection(player, selected_item)
+end
+
+function cycle_tile(player, direction)
+  local tile_list = get_available_tile_items()
 
   if #tile_list == 0 then
     return
@@ -207,56 +215,23 @@ function cycle_tile(player, direction)
     end
   end
 
-  -- TODO DRY this with click handler
-  -- Update the selected tile
   local new_selected = tile_list[current_index]
-  storage.selected = new_selected
-
-  -- Update the GUI to reflect the new selection
-  local frame = player.gui.screen.floor_item_picker_frame
-  if frame and frame.valid then
-    local selector = frame.inner_frame.tile_selector
-    for _, option_name in pairs(selector.children_names) do
-      local item_name = string.sub(option_name, string.len(prefix) + 1)
-      if item_name == new_selected then
-        selector[option_name].style = "slot_sized_button_pressed"
-      else
-        selector[option_name].style = "slot_sized_button"
-      end
-    end
-  end
+  update_gui_selection(player, new_selected)
 end
 
 function show_gui(player)
-  -- Collect all blueprintable items that place tiles, to be presented as
-  -- selections in the GUI
-  local available_tiles = prototypes.get_tile_filtered{{filter="blueprintable"}}
+  local tile_list, items = get_available_tile_items()
 
-  local items = {}
   local old_selected = storage.selected
   local new_selected = nil
 
-  for _, tile in pairs(available_tiles) do
-    -- In base game all tiles are placeable from an item, but some mods (i.e
-    -- Buildable Melting Ice) do interesting things with tiles that are
-    -- blueprintable but not from an item. I haven't put the time into
-    -- understand whether that's copacetic, but until someone complains we're
-    -- going to exclude from here.
-    if tile.items_to_place_this then
-      for _, placing_item in pairs(tile.items_to_place_this) do
-        local name = placing_item.name
-        if not items[name] then
-          items[name] = tile.name
-
-          if old_selected == nil then
-            old_selected = name
-            new_selected = name
-          else
-            if old_selected == name then
-              new_selected = old_selected
-            end
-          end
-        end
+  for _, name in ipairs(tile_list) do
+    if old_selected == nil then
+      old_selected = name
+      new_selected = name
+    else
+      if old_selected == name then
+        new_selected = old_selected
       end
     end
   end
