@@ -18,7 +18,7 @@ echo $BUILDDIR
 rm -Rf $BUILDDIR
 cp -R . $BUILDDIR
 
-rm $BUILDDIR/*.zip
+rm -f $BUILDDIR/*.zip
 rm -Rf $BUILDDIR/.git*
 rm -Rf $BUILDDIR/.github
 rm -Rf $BUILDDIR/.vscode
